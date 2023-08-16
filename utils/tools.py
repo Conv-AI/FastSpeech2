@@ -1,5 +1,6 @@
 import os
 import json
+import wandb
 
 import torch
 import torch.nn.functional as F
@@ -90,6 +91,26 @@ def log(
             sample_rate=sampling_rate,
         )
 
+def log_wandb(step=None, losses=None, fig=None, audio=None, sampling_rate=22050, tag=""):
+    
+    log_dict = {}
+    
+    if losses is not None:
+        log_dict["Loss/total_loss"] = losses[0]
+        log_dict["Loss/mel_loss"] = losses[1]
+        log_dict["Loss/mel_postnet_loss"] = losses[2]
+        log_dict["Loss/pitch_loss"] = losses[3]
+        log_dict["Loss/energy_loss"] = losses[4]
+        log_dict["Loss/duration_loss"] = losses[5]
+        
+    if fig is not None:
+        log_dict[tag] = wandb.Image(fig)
+
+    if audio is not None:
+        norm_audio = audio / max(abs(audio))
+        log_dict[tag] = wandb.Audio(norm_audio, sample_rate=sampling_rate)
+    
+    wandb.log(log_dict, step=step)
 
 def get_mask_from_lengths(lengths, max_len=None):
     batch_size = lengths.shape[0]
