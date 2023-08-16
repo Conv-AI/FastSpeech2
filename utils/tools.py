@@ -71,46 +71,44 @@ def to_device(data, device):
 
 
 def log(
-    logger, step=None, losses=None, fig=None, audio=None, sampling_rate=22050, tag="", logger_type="tensorboard"
+    logger, step=None, losses=None, fig=None, audio=None, sampling_rate=22050, tag="", logger_stage="training"
 ):
-    if logger_type == "tensorboard":
-        if losses is not None:
-            logger.add_scalar("Loss/total_loss", losses[0], step)
-            logger.add_scalar("Loss/mel_loss", losses[1], step)
-            logger.add_scalar("Loss/mel_postnet_loss", losses[2], step)
-            logger.add_scalar("Loss/pitch_loss", losses[3], step)
-            logger.add_scalar("Loss/energy_loss", losses[4], step)
-            logger.add_scalar("Loss/duration_loss", losses[5], step)
+    if losses is not None:
+        logger.add_scalar("Loss/total_loss", losses[0], step)
+        logger.add_scalar("Loss/mel_loss", losses[1], step)
+        logger.add_scalar("Loss/mel_postnet_loss", losses[2], step)
+        logger.add_scalar("Loss/pitch_loss", losses[3], step)
+        logger.add_scalar("Loss/energy_loss", losses[4], step)
+        logger.add_scalar("Loss/duration_loss", losses[5], step)
 
-        if fig is not None:
-            logger.add_figure(tag, fig)
+    if fig is not None:
+        logger.add_figure(tag, fig)
 
-        if audio is not None:
-            logger.add_audio(
-                tag,
-                audio / max(abs(audio)),
-                sample_rate=sampling_rate,
-            )
-
-    elif logger_type == "wandb":
-        log_dict = {}
+    if audio is not None:
+        logger.add_audio(
+            tag,
+            audio / max(abs(audio)),
+            sample_rate=sampling_rate,
+        )
+    
+    log_dict = {}
+    
+    if losses is not None:
+        log_dict[logger_stage + "Loss/total_loss"] = losses[0]
+        log_dict[logger_stage + "Loss/mel_loss"] = losses[1]
+        log_dict[logger_stage + "Loss/mel_postnet_loss"] = losses[2]
+        log_dict[logger_stage + "Loss/pitch_loss"] = losses[3]
+        log_dict[logger_stage + "Loss/energy_loss"] = losses[4]
+        log_dict[logger_stage + "Loss/duration_loss"] = losses[5]
         
-        if losses is not None:
-            log_dict["Loss/total_loss"] = losses[0]
-            log_dict["Loss/mel_loss"] = losses[1]
-            log_dict["Loss/mel_postnet_loss"] = losses[2]
-            log_dict["Loss/pitch_loss"] = losses[3]
-            log_dict["Loss/energy_loss"] = losses[4]
-            log_dict["Loss/duration_loss"] = losses[5]
-            
-        if fig is not None:
-            log_dict[tag] = wandb.Image(fig)
+    if fig is not None:
+        log_dict[logger_stage + tag] = wandb.Image(fig)
 
-        if audio is not None:
-            norm_audio = audio / max(abs(audio))
-            log_dict[tag] = wandb.Audio(norm_audio, sample_rate=sampling_rate)
-        
-        wandb.log(log_dict, step=step)
+    if audio is not None:
+        norm_audio = audio / max(abs(audio))
+        log_dict[logger_stage + tag] = wandb.Audio(norm_audio, sample_rate=sampling_rate)
+    
+    wandb.log(log_dict, step=step)
 
 def get_mask_from_lengths(lengths, max_len=None):
     batch_size = lengths.shape[0]
