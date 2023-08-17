@@ -20,7 +20,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def main(args, configs):
-    wandb.init(project=args.project_name, config=configs)
+    wandb.init(project=args.project_name, config=configs[0])
     print("Prepare training ...")
 
     preprocess_config, model_config, train_config = configs
@@ -192,7 +192,7 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--project_name", type=str, required=False, help="name of the wandb project", default="FastSpeech2_training"
+        "-n","--project_name", type=str, required=False, help="name of the wandb project", default="FastSpeech2_training"
     )
     
     args = parser.parse_args()

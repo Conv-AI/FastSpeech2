@@ -60,9 +60,9 @@ def get_vocoder(config, device, speaker_= None):
         config = hifigan.AttrDict(config)
         vocoder = hifigan.Generator(config)
         if speaker == "LJSpeech":
-            ckpt = torch.load("hifigan/generator_LJSpeech.pth.tar")
+            ckpt = torch.load("/workspace/nemo/vol/FastSpeech2/hifigan/generator_LJSpeech.pth.tar")
         elif speaker == "universal":
-            ckpt = torch.load("hifigan/generator_universal.pth.tar")
+            ckpt = torch.load("/workspace/nemo/vol/FastSpeech2/hifigan/generator_universal.pth.tar")
         if speaker_ is not None:
             ckpt = torch.load("/workspace/nemo/vol/TTS_voices/FP_checkpoints/HifiGan--val_loss=0.3257-epoch=9479.ckpt")
         vocoder.load_state_dict(ckpt["generator"])
