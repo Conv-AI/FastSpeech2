@@ -52,7 +52,8 @@ def main(args, configs):
     print("Number of FastSpeech2 Parameters:", num_param)
 
     # Load vocoder
-    vocoder = get_vocoder(model_config, device)
+#     vocoder = get_vocoder(model_config, device)
+    vocoder = None
 
     # Init logger
     for p in train_config["path"].values():

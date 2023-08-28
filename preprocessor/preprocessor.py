@@ -21,6 +21,9 @@ class Preprocessor:
         self.val_size = config["preprocessing"]["val_size"]
         self.sampling_rate = config["preprocessing"]["audio"]["sampling_rate"]
         self.hop_length = config["preprocessing"]["stft"]["hop_length"]
+        
+        if not os.path.exists(self.out_dir):
+            os.makedirs(self.out_dir)
 
         assert config["preprocessing"]["pitch"]["feature"] in [
             "phoneme_level",
@@ -49,6 +52,18 @@ class Preprocessor:
             config["preprocessing"]["mel"]["mel_fmin"],
             config["preprocessing"]["mel"]["mel_fmax"],
         )
+    
+    @staticmethod
+    def check_folder_or_file(name):
+        if os.path.exists(name):
+            if os.path.isdir(name):
+                return "folder"
+            elif os.path.isfile(name):
+                return "file"
+            else:
+                return "neither"
+        else:
+            return "not_exist"
 
     def build_from_path(self):
         os.makedirs((os.path.join(self.out_dir, "mel")), exist_ok=True)
@@ -67,16 +82,27 @@ class Preprocessor:
         emotions = set()
         for i, speaker in enumerate(tqdm(os.listdir(self.in_dir))):
             speakers[speaker] = i
+            
+            speaker_path = os.path.join(self.in_dir, speaker)
+            if not Preprocessor.check_folder_or_file(speaker_path) == "folder":
+                continue
+            
             for j, emotion in enumerate(tqdm(os.listdir(os.path.join(self.in_dir, speaker)))):
                 emotions.add(emotion)
+                
+                emotion_path = os.path.join(self.in_dir, speaker, emotion)
+                if not Preprocessor.check_folder_or_file(emotion_path) == "folder":
+                    continue
+                
                 for wav_name in os.listdir(os.path.join(self.in_dir, speaker, emotion)):
                     if ".wav" not in wav_name:
                         continue
 
                     basename = wav_name.split(".")[0]
                     tg_path = os.path.join(
-                        self.out_dir, "TextGrid", speaker, "{}.TextGrid".format(basename)
+                        self.out_dir, "TextGrid", speaker, emotion, "{}.TextGrid".format(basename)
                     )
+                    print("tg_path:", tg_path)
                     if os.path.exists(tg_path):
                         ret = self.process_utterance(speaker, emotion, basename)
                         if ret is None:
@@ -164,7 +190,7 @@ class Preprocessor:
         wav_path = os.path.join(self.in_dir, speaker, emotion, "{}.wav".format(basename))
         text_path = os.path.join(self.in_dir, speaker, emotion, "{}.lab".format(basename))
         tg_path = os.path.join(
-            self.out_dir, "TextGrid", speaker, "{}.TextGrid".format(basename)
+            self.out_dir, "TextGrid", speaker, emotion, "{}.TextGrid".format(basename)
         )
 
         # Get alignments

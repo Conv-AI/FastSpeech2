@@ -2,7 +2,7 @@ import argparse
 
 import yaml
 
-from preprocessor import ljspeech, aishell3, libritts, ravdess
+from preprocessor import ljspeech, aishell3, libritts, ravdess, eb_small
 
 
 def main(config):
@@ -14,6 +14,8 @@ def main(config):
         libritts.prepare_align(config)
     if "RAVDESS" in config["dataset"]:
         ravdess.prepare_align(config)
+    if "EB_Small" in config["dataset"]:
+        eb_small.prepare_align(config)
 
 
 if __name__ == "__main__":
