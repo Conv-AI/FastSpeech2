@@ -1,0 +1,63 @@
+wandb_version: 1
+
+dataset:
+  desc: null
+  value: EB_Small
+path:
+  desc: null
+  value:
+    corpus_path: ../Filtered_mini_dataset_v1/processed_merged_chunks/
+    lexicon_path: ../Filtered_mini_dataset_v1/eb_small_dictionary_mfa.txt
+    raw_path: ../Filtered_mini_dataset_v1/raw_data/EB_Small
+    preprocessed_path: ../Filtered_mini_dataset_v1/preprocessed_data/EB_Small
+preprocessing:
+  desc: null
+  value:
+    val_size: 512
+    text:
+      text_cleaners:
+      - english_cleaners
+      language: en
+    audio:
+      sampling_rate: 22050
+      max_wav_value: 32768.0
+    stft:
+      filter_length: 1024
+      hop_length: 256
+      win_length: 1024
+    mel:
+      n_mel_channels: 80
+      mel_fmin: 0
+      mel_fmax: 8000
+    pitch:
+      feature: phoneme_level
+      normalization: true
+    energy:
+      feature: phoneme_level
+      normalization: true
+_wandb:
+  desc: null
+  value:
+    python_version: 3.8.10
+    cli_version: 0.15.5
+    framework: torch
+    is_jupyter_run: false
+    is_kaggle_kernel: false
+    start_time: 1693222537.658766
+    t:
+      1:
+      - 1
+      - 55
+      - 100
+      2:
+      - 1
+      - 55
+      - 100
+      3:
+      - 13
+      - 16
+      - 23
+      4: 3.8.10
+      5: 0.15.5
+      8:
+      - 5
