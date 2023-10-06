@@ -46,6 +46,10 @@ def main(args, configs):
 
     # Prepare model
     model, optimizer = get_model(args, configs, device, train=True)
+    ckpt_file_path = './checkpoint.pth'
+    checkpoint = torch.load(ckpt_file_path, map_location=torch.device('cpu'))
+    model.load_state_dict(checkpoint['model'])
+    
     model = nn.DataParallel(model)
     num_param = get_param_num(model)
     Loss = FastSpeech2Loss(preprocess_config, model_config).to(device)
