@@ -1,14 +1,17 @@
 import os
+import torch
 import random
 import json
 import warnings
 import tgt
 import librosa
 import numpy as np
+import pandas as pd
 import pyworld as pw
 from scipy.interpolate import interp1d
 from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
+import multiprocessing
 
 import audio as Audio
 
@@ -107,21 +110,22 @@ class Preprocessor:
         with open(os.path.join(self.out_dir, "emotions.json"), "w") as f:
             f.write(json.dumps(emotions_dict))
             
-        #save filelists (tg, wav and text_paths)
-                    
-        return tg_paths, wav_paths, text_paths
+        paths_data = pd.DataFrame({'tg_paths': tg_paths, 'text_paths': text_paths, 'wav_paths': wav_paths})
+        paths_data.to_csv(self.out_dir + '/' + 'paths.csv', index=False)
+            
+
     
     def calculate_stats(pitches, energies, mels):
         n_frames = 0
         
-        for pitch, energy, mel in zip(pitches, energies, mels)
-        if len(pitch) > 0:
-            pitch_scaler.partial_fit(pitch.reshape((-1, 1)))
-        if len(energy) > 0:
-            energy_scaler.partial_fit(energy.reshape((-1, 1)))
-        if len(mel) > 0:
-            n = mel.shape[1]
-            n_frames += n
+        for pitch, energy, mel in zip(pitches, energies, mels):
+            if len(pitch) > 0:
+                pitch_scaler.partial_fit(pitch.reshape((-1, 1)))
+            if len(energy) > 0:
+                energy_scaler.partial_fit(energy.reshape((-1, 1)))
+            if len(mel) > 0:
+                n = mel.shape[1]
+                n_frames += n
 
 
         print("Computing statistic quantities ...")
@@ -169,80 +173,168 @@ class Preprocessor:
                 n_frames * self.hop_length / self.sampling_rate / 3600
             )
         )
+        
+    def process_duration_and_pitch_mp(self, basenames, speakers, emotions):
+        out = []
+        num_processes = multiprocessing.cpu_count()  # You can adjust this as needed
+        pool = multiprocessing.Pool(processes=num_processes)
+
+        # Use the pool to apply the function to each pair of tg and wav paths
+        out.extend(pool.starmap(self.process_duration_and_pitch, zip(basenames, speakers, emotions)))
+
+        # Close the pool and wait for all processes to complete
+        pool.close()
+        pool.join()
+        
+        random.shuffle(out)
+        out = [r for r in out if r is not None]
+        
+        #print(out)
+
+        # Write metadata
+        with open(os.path.join(self.out_dir, "train.txt"), "w", encoding="utf-8") as f:
+            for m in out[self.val_size :]:
+                f.write(m + "\n")
+        with open(os.path.join(self.out_dir, "val.txt"), "w", encoding="utf-8") as f:
+            for m in out[: self.val_size]:
+                f.write(m + "\n")
+        
     
-    def process_duration_and_pitch(self, tg_path, wav_path):
+    def process_duration_and_pitch(self, basename, speaker, emotion):
         # Get alignments
-        textgrid = tgt.io.read_textgrid(tg_path)
-        phone, duration, start, end = self.get_alignment(
-            textgrid.get_tier_by_name("phones")
+        wav_path = os.path.join(self.in_dir, speaker, emotion, "{}.wav".format(basename))
+        text_path = os.path.join(self.in_dir, speaker, emotion, "{}.lab".format(basename))
+        tg_path = os.path.join(
+            self.out_dir, "TextGrid", speaker, emotion, "{}.TextGrid".format(basename)
         )
-        if not phone:
-            return None
-        text = "{" + " ".join(phone) + "}"
-        if start >= end:
-            return None
-
-        # Read and trim wav files
-        wav, _ = librosa.load(wav_path)
-        wav = wav[
-            int(self.sampling_rate * start) : int(self.sampling_rate * end)
-        ].astype(np.float32)
         
-        # Compute fundamental frequency
-        pitch, t = pw.dio(
-            wav.astype(np.float64),
-            self.sampling_rate,
-            frame_period=self.hop_length / self.sampling_rate * 1000,
-        )
-        pitch = pw.stonemask(wav.astype(np.float64), pitch, t, self.sampling_rate)
-
-        pitch = pitch[: sum(duration)]
-        if np.sum(pitch != 0) <= 1:
-            return None
-        
-        if self.pitch_phoneme_averaging:
-            # perform linear interpolation
-            nonzero_ids = np.where(pitch != 0)[0]
-            interp_fn = interp1d(
-                nonzero_ids,
-                pitch[nonzero_ids],
-                fill_value=(pitch[nonzero_ids[0]], pitch[nonzero_ids[-1]]),
-                bounds_error=False,
-            )
-            pitch = interp_fn(np.arange(0, len(pitch)))
-
-            # Phoneme-level average
-            pos = 0
-            for i, d in enumerate(duration):
-                if d > 0:
-                    pitch[i] = np.mean(pitch[pos : pos + d])
-                else:
-                    pitch[i] = 0
-                pos += d
-            pitch = pitch[: len(duration)]
+        if os.path.exists(tg_path) and os.path.exists(wav_path) and os.path.exists(text_path):
             
-        # Save files
-        dur_filename = "{}-duration-{}.npy".format(speaker, basename)
-        np.save(os.path.join(self.out_dir, "duration", dur_filename), duration)
+            textgrid = tgt.io.read_textgrid(tg_path)
+            phone, duration, start, end = self.get_alignment(
+                textgrid.get_tier_by_name("phones")
+            )
+            if not phone:
+                return None
+            text = "{" + " ".join(phone) + "}"
+            if start >= end:
+                return None
 
-        pitch_filename = "{}-pitch-{}.npy".format(speaker, basename)
-        np.save(os.path.join(self.out_dir, "pitch", pitch_filename), pitch)
+            # Read and trim wav files
+            wav, _ = librosa.load(wav_path)
+            wav = wav[
+                int(self.sampling_rate * start) : int(self.sampling_rate * end)
+            ].astype(np.float32)
+
+            # Read raw text
+            with open(text_path, "r") as f:
+                raw_text = f.readline().strip("\n")
+
+            # Compute fundamental frequency
+            pitch, t = pw.dio(
+                wav.astype(np.float64),
+                self.sampling_rate,
+                frame_period=self.hop_length / self.sampling_rate * 1000,
+            )
+            pitch = pw.stonemask(wav.astype(np.float64), pitch, t, self.sampling_rate)
+
+            pitch = pitch[: sum(duration)]
+            if np.sum(pitch != 0) <= 1:
+                return None
+
+            if self.pitch_phoneme_averaging:
+                # perform linear interpolation
+                nonzero_ids = np.where(pitch != 0)[0]
+                interp_fn = interp1d(
+                    nonzero_ids,
+                    pitch[nonzero_ids],
+                    fill_value=(pitch[nonzero_ids[0]], pitch[nonzero_ids[-1]]),
+                    bounds_error=False,
+                )
+                pitch = interp_fn(np.arange(0, len(pitch)))
+
+                # Phoneme-level average
+                pos = 0
+                for i, d in enumerate(duration):
+                    if d > 0:
+                        pitch[i] = np.mean(pitch[pos : pos + d])
+                    else:
+                        pitch[i] = 0
+                    pos += d
+                pitch = pitch[: len(duration)]
+
+            # Save files
+            dur_filename = "{}-{}-duration-{}.npy".format(speaker, emotion, basename)
+            np.save(os.path.join(self.out_dir, "duration", dur_filename), duration)
+
+            pitch_filename = "{}-{}-pitch-{}.npy".format(speaker, emotion, basename)
+            np.save(os.path.join(self.out_dir, "pitch", pitch_filename), pitch)
+
+            wav_filename = "{}-{}-wav-{}.npy".format(speaker, emotion, basename)
+            np.save(os.path.join(self.out_dir, "wav_modified", wav_filename), wav)
+
+            return "|".join([basename, speaker, emotion, text, raw_text])
+    
+    def read_npy(self, speaker, emotion, basename):
+        dur, wav = None, None
+        dur_filename = "{}-{}-duration-{}.npy".format(speaker, emotion, basename)
+        wav_filename = "{}-{}-wav-{}.npy".format(speaker, emotion, basename)
+        
+        dur_path = os.path.join(self.out_dir, "duration", dur_filename)
+        wav_path = os.path.join(self.out_dir, "wav_modified", wav_filename)
+        if os.path.exists(dur_path) and os.path.exists(wav_path):
+            dur = np.load(dur_path)
+            wav = np.load(wav_path)
+        
+        return dur, wav
+    
+    def read_npy_mp(self, speakers, emotions, basenames):
+        num_processes = multiprocessing.cpu_count()  # You can adjust this as needed
+        pool = multiprocessing.Pool(processes=num_processes)
+        
+        #pool.starmap(self.process_duration_and_pitch, zip(tg_paths, wav_paths, basenames, speakers, emotions))
+        
+        res = pool.starmap(self.read_npy, zip(speakers, emotions, basenames))
+                                   
+        pool.close()
+        pool.join()
+        
+        return res
+        
         
     @staticmethod    
-    def pad_wavs(wavs):
-        return wavs
-        
-        
-    def process_mels_and_energies(self, wavs, durations, speakers, basenames):
-        # Compute mel-scale spectrogram and energy
-        wavs = pad_wavs(wavs)
-        mel_spectrograms, energies = Audio.tools.get_mel_from_wav(wavs, self.STFT)
-        for mel_spectrogram, energy, duration, speaker, basename in zip(mel_spectrograms, energies, durations, speakers, basenmes):
-            mel_spectrogram = mel_spectrogram[:, : sum(duration)]
-            energy = energy[: sum(duration)]
+    def pad_batch_wavs(batch_wavs):
+        """
+        Pad a batch of audio waveforms with zeros to match the length of the longest waveform.
+
+        Parameters:
+            batch_wavs (np.ndarray): A 2D NumPy array where each row represents an audio waveform.
+
+        Returns:
+            np.ndarray: A 2D NumPy array containing the padded audio waveforms.
+        """
+        max_length = max(len(wav) for wav in batch_wavs)
+
+        # Initialize an empty array for padded waveforms
+        padded_batch = np.zeros((len(batch_wavs), max_length), dtype=np.float32)
+
+        for i, wav in enumerate(batch_wavs):
+            current_length = len(wav)
+            padded_batch[i, :current_length] = wav
             
-            if self.energy_phoneme_averaging:
-            # Phoneme-level average
+        tensor_batch = torch.Tensor(padded_batch)
+        
+        batch_size, max_len = tensor_batch.shape
+        tensor_batch = tensor_batch.view(batch_size, -1)
+
+        return tensor_batch
+    
+    def save_energy_and_mel(self, mel_spectrogram, energy, duration, speaker, basename, emotion):
+        mel_spectrogram = mel_spectrogram[:, : sum(duration)]
+        energy = energy[: sum(duration)]
+
+        if self.energy_phoneme_averaging:
+        # Phoneme-level average
             pos = 0
             for i, d in enumerate(duration):
                 if d > 0:
@@ -251,29 +343,144 @@ class Preprocessor:
                     energy[i] = 0
                 pos += d
             energy = energy[: len(duration)]
-            
-            energy_filename = "{}-energy-{}.npy".format(speaker, basename)
-            np.save(os.path.join(self.out_dir, "energy", energy_filename), energy)
 
-            mel_filename = "{}-mel-{}.npy".format(speaker, basename)
-            np.save(
-                os.path.join(self.out_dir, "mel", mel_filename),
-                mel_spectrogram.T,
-            )        
+        energy_filename = "{}-{}-energy-{}.npy".format(speaker, emotion, basename)
+        np.save(os.path.join(self.out_dir, "energy", energy_filename), energy)
+
+        mel_filename = "{}-{}-mel-{}.npy".format(speaker, emotion, basename)
+        np.save(
+            os.path.join(self.out_dir, "mel", mel_filename),
+            mel_spectrogram.T,
+        ) 
         
         
-    def build_from_path(self):
-        os.makedirs((os.path.join(self.out_dir, "mel")), exist_ok=True)
-        os.makedirs((os.path.join(self.out_dir, "pitch")), exist_ok=True)
-        os.makedirs((os.path.join(self.out_dir, "energy")), exist_ok=True)
-        os.makedirs((os.path.join(self.out_dir, "duration")), exist_ok=True)
-        os.makedirs((os.path.join(self.out_dir, "updated_wavs")), exist_ok=True)
         
-        print("Processing Data ...")
+    def process_mels_and_energies(self, basenames, speakers, emotions, batch_size):
+        # Compute mel-scale spectrogram and energy
+        n = int(len(speakers)/batch_size) + 1
+        
+        for i in range(n):
+            basenames_ = basenames[batch_size*i: batch_size*(i+1)]
+            speakers_ = speakers[batch_size*i: batch_size*(i+1)]
+            emotions_ = emotions[batch_size*i: batch_size*(i+1)]
+            res = self.read_npy_mp(speakers_, emotions_, basenames_)
+            wavs = [item[1] for item in res if isinstance(item[1], np.ndarray)]
+            durations = [item[0] for item in res if isinstance(item[0], np.ndarray)]
+            
+            wavs = Preprocessor.pad_batch_wavs(wavs)
+    
+            #print(wavs)
+            print(i)
+            
+            mel_spectrograms, energies = Audio.tools.get_mel_from_wav(wavs, self.STFT)
+            
+            num_processes = multiprocessing.cpu_count()  # You can adjust this as needed
+            pool = multiprocessing.Pool(processes=num_processes)
+            
+            pool.starmap(self.save_energy_and_mel, zip(mel_spectrograms, energies, durations, speakers_, basenames_, emotions_))
+
+            # Close the pool and wait for all processes to complete
+            pool.close()
+            pool.join()
+            
+    def read_pitch_energy_mel(self, speaker, emotion, basename):
+        pitch, energy, mel = None, None, None
+        pitch_filename = "{}-{}-pitch-{}.npy".format(speaker, emotion, basename)
+        energy_filename = "{}-{}-energy-{}.npy".format(speaker, emotion, basename)
+        mel_filename = "{}-{}-mel-{}.npy".format(speaker, emotion, basename)
+        
+        pitch_path = os.path.join(self.out_dir, "pitch", pitch_filename)
+        energy_path = os.path.join(self.out_dir, "energy", energy_filename)
+        mel_path = os.path.join(self.out_dir, "mel", mel_filename)
+        
+        #print(pitch_path, energy_path, mel_path)
+        
+        if os.path.exists(pitch_path) and os.path.exists(energy_path) and os.path.exists(mel_path):
+            pitch = np.load(pitch_path)
+            energy = np.load(energy_path)
+            mel = np.load(mel_path)
+        
+        return pitch, energy, mel
+        
+        
+    def build_from_path(self, speakers, emotions, basenames):
         out = list()
         n_frames = 0
         pitch_scaler = StandardScaler()
         energy_scaler = StandardScaler()
+        
+        num_processes = multiprocessing.cpu_count()  # You can adjust this as needed
+        pool = multiprocessing.Pool(processes=num_processes)
+        
+        res = pool.starmap(self.read_pitch_energy_mel, zip(speakers, emotions, basenames))
+        
+        pool.close()
+        pool.join()
+        
+        for item in res:
+            #print(item)
+            pitch = item[0]
+            energy = item[1]
+            if not isinstance(pitch, np.ndarray) or not isinstance(energy, np.ndarray):
+                continue
+            pitch = self.remove_outlier(pitch)
+            energy = self.remove_outlier(energy)
+            mel = item[2]
+            n = mel.shape[1]
+            n_frames += n
+            
+            if len(pitch) > 0:
+                pitch_scaler.partial_fit(pitch.reshape((-1, 1)))
+                
+            if len(energy) > 0:
+                energy_scaler.partial_fit(energy.reshape((-1, 1)))
+                
+        print("Computing statistic quantities ...")
+        # Perform normalization if necessary
+        if self.pitch_normalization:
+            pitch_mean = pitch_scaler.mean_[0]
+            pitch_std = pitch_scaler.scale_[0]
+        else:
+            # A numerical trick to avoid normalization...
+            pitch_mean = 0
+            pitch_std = 1
+        if self.energy_normalization:
+            energy_mean = energy_scaler.mean_[0]
+            energy_std = energy_scaler.scale_[0]
+        else:
+            energy_mean = 0
+            energy_std = 1
+
+        pitch_min, pitch_max = self.normalize(
+            os.path.join(self.out_dir, "pitch"), pitch_mean, pitch_std
+        )
+        energy_min, energy_max = self.normalize(
+            os.path.join(self.out_dir, "energy"), energy_mean, energy_std
+        )
+        
+        with open(os.path.join(self.out_dir, "stats.json"), "w") as f:
+            stats = {
+                "pitch": [
+                    float(pitch_min),
+                    float(pitch_max),
+                    float(pitch_mean),
+                    float(pitch_std),
+                ],
+                "energy": [
+                    float(energy_min),
+                    float(energy_max),
+                    float(energy_mean),
+                    float(energy_std),
+                ],
+            }
+            f.write(json.dumps(stats))
+
+        print(
+            "Total time: {} hours".format(
+                n_frames * self.hop_length / self.sampling_rate / 3600
+            )
+        )
+        
         
     def get_alignment(self, tier):
         sil_phones = ["sil", "sp", "spn"]
