@@ -1,0 +1,23 @@
+path:
+  ckpt_path: "./output/ckpt/EMOVDB_frozen"
+  log_path: "./output/log/EMOVDB_frozen"
+  result_path: "./output/result/EMOVDB_frozen"
+optimizer:
+  batch_size: 1024
+  betas: [0.9, 0.98]
+  eps: 0.000000001
+  weight_decay: 0.0
+  grad_clip_thresh: 1.0
+  grad_acc_step: 8
+  warm_up_step: 4000
+  anneal_steps: [300000, 400000, 500000]
+  anneal_rate: 0.3
+step:
+  total_step: 1000000
+  log_step: 50
+  synth_step: 1000
+  val_step: 200
+  save_step: 500
+logging:
+  project: "EMOVDB_frozen"
+  run: "BS_128_GA_4"

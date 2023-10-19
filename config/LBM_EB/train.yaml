@@ -1,0 +1,23 @@
+path:
+  ckpt_path: "./output/ckpt/LBM_EB"
+  log_path: "./output/log/LBM_EB"
+  result_path: "./output/result/LBM_EB"
+optimizer:
+  batch_size: 128
+  betas: [0.9, 0.98]
+  eps: 0.000000001
+  weight_decay: 0.0
+  grad_clip_thresh: 1.0
+  grad_acc_step: 32
+  warm_up_step: 4000
+  anneal_steps: [300000, 400000, 500000]
+  anneal_rate: 0.3
+step:
+  total_step: 1000000
+  log_step: 50
+  synth_step: 1000
+  val_step: 1000
+  save_step: 1000
+logging:
+  project: "Convai_LBM_EB"
+  run: "BS_128"
