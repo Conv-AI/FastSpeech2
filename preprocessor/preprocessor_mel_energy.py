@@ -66,16 +66,16 @@ class Preprocessor:
             return "not_exist"
 
     def build_from_path(self):
-        os.makedirs((os.path.join(self.out_dir, "mel")), exist_ok=True)
-        os.makedirs((os.path.join(self.out_dir, "pitch")), exist_ok=True)
-        os.makedirs((os.path.join(self.out_dir, "energy")), exist_ok=True)
-        os.makedirs((os.path.join(self.out_dir, "duration")), exist_ok=True)
+#         os.makedirs((os.path.join(self.out_dir, "mel")), exist_ok=True)
+#         os.makedirs((os.path.join(self.out_dir, "pitch")), exist_ok=True)
+#         os.makedirs((os.path.join(self.out_dir, "energy")), exist_ok=True)
+#         os.makedirs((os.path.join(self.out_dir, "duration")), exist_ok=True)
 
-        print("Processing Data ...")
-        out = list()
-        n_frames = 0
-        pitch_scaler = StandardScaler()
-        energy_scaler = StandardScaler()
+#         print("Processing Data ...")
+#         out = list()
+#         n_frames = 0
+#         pitch_scaler = StandardScaler()
+#         energy_scaler = StandardScaler()
         
         total_wavs = 0
         for speaker in os.listdir(self.in_dir):
@@ -113,156 +113,154 @@ class Preprocessor:
                     tg_path = os.path.join(
                         self.out_dir, "TextGrid", speaker, emotion, "{}.TextGrid".format(basename)
                     )
+                    modified_wav_filename = "{}-{}-wav-{}.npy".format(speaker, emotion, basename)
+                    modified_wav_path = os.path.join(self.out_dir, 'wav_modified', modified_wav_filename)
+        
+#                     dur_filename = "{}-{}-duration-{}.npy".format(speaker, emotion, basename)
+#                     duration_path = os.path.join(self.out_dir, 'duration', dur_filename)
+                    
 #                     print("tg_path:", tg_path)
-                    if os.path.exists(tg_path):
-                        ret = self.process_utterance(speaker, emotion, basename)
-                        if ret is None:
-                            continue
-                        else:
-                            info, pitch, energy, n = ret
-                        out.append(info)
+                    if os.path.exists(tg_path) and os.path.exists(modified_wav_path):
+                        self.process_utterance(speaker, emotion, basename)
+#                         if ret is None:
+#                             continue
+#                         else:
+#                             info, pitch, energy, n = ret
+#                         out.append(info)
 
-                    if len(pitch) > 0:
-                        pitch_scaler.partial_fit(pitch.reshape((-1, 1)))
-                    if len(energy) > 0:
-                        energy_scaler.partial_fit(energy.reshape((-1, 1)))
+#                     if len(pitch) > 0:
+#                         pitch_scaler.partial_fit(pitch.reshape((-1, 1)))
+#                     if len(energy) > 0:
+#                         energy_scaler.partial_fit(energy.reshape((-1, 1)))
 
-                    n_frames += n
+#                     n_frames += n
         pbar.close()
 
 
-        print("Computing statistic quantities ...")
-        # Perform normalization if necessary
-        if self.pitch_normalization:
-            pitch_mean = pitch_scaler.mean_[0]
-            pitch_std = pitch_scaler.scale_[0]
-        else:
-            # A numerical trick to avoid normalization...
-            pitch_mean = 0
-            pitch_std = 1
-        if self.energy_normalization:
-            energy_mean = energy_scaler.mean_[0]
-            energy_std = energy_scaler.scale_[0]
-        else:
-            energy_mean = 0
-            energy_std = 1
+#         print("Computing statistic quantities ...")
+#         # Perform normalization if necessary
+#         if self.pitch_normalization:
+#             pitch_mean = pitch_scaler.mean_[0]
+#             pitch_std = pitch_scaler.scale_[0]
+#         else:
+#             # A numerical trick to avoid normalization...
+#             pitch_mean = 0
+#             pitch_std = 1
+#         if self.energy_normalization:
+#             energy_mean = energy_scaler.mean_[0]
+#             energy_std = energy_scaler.scale_[0]
+#         else:
+#             energy_mean = 0
+#             energy_std = 1
 
-        pitch_min, pitch_max = self.normalize(
-            os.path.join(self.out_dir, "pitch"), pitch_mean, pitch_std
-        )
-        energy_min, energy_max = self.normalize(
-            os.path.join(self.out_dir, "energy"), energy_mean, energy_std
-        )
+#         pitch_min, pitch_max = self.normalize(
+#             os.path.join(self.out_dir, "pitch"), pitch_mean, pitch_std
+#         )
+#         energy_min, energy_max = self.normalize(
+#             os.path.join(self.out_dir, "energy"), energy_mean, energy_std
+#         )
 
-        # Save files
-        with open(os.path.join(self.out_dir, "speakers.json"), "w") as f:
-            f.write(json.dumps(speakers))
+#         # Save files
+#         with open(os.path.join(self.out_dir, "speakers.json"), "w") as f:
+#             f.write(json.dumps(speakers))
 
-        emotions_dict = {emotion: i for i, emotion in enumerate(emotions)}
-        with open(os.path.join(self.out_dir, "emotions.json"), "w") as f:
-            f.write(json.dumps(emotions_dict))
+#         emotions_dict = {emotion: i for i, emotion in enumerate(emotions)}
+#         with open(os.path.join(self.out_dir, "emotions.json"), "w") as f:
+#             f.write(json.dumps(emotions_dict))
 
-        with open(os.path.join(self.out_dir, "stats.json"), "w") as f:
-            stats = {
-                "pitch": [
-                    float(pitch_min),
-                    float(pitch_max),
-                    float(pitch_mean),
-                    float(pitch_std),
-                ],
-                "energy": [
-                    float(energy_min),
-                    float(energy_max),
-                    float(energy_mean),
-                    float(energy_std),
-                ],
-            }
-            f.write(json.dumps(stats))
+#         with open(os.path.join(self.out_dir, "stats.json"), "w") as f:
+#             stats = {
+#                 "pitch": [
+#                     float(pitch_min),
+#                     float(pitch_max),
+#                     float(pitch_mean),
+#                     float(pitch_std),
+#                 ],
+#                 "energy": [
+#                     float(energy_min),
+#                     float(energy_max),
+#                     float(energy_mean),
+#                     float(energy_std),
+#                 ],
+#             }
+#             f.write(json.dumps(stats))
 
-        print(
-            "Total time: {} hours".format(
-                n_frames * self.hop_length / self.sampling_rate / 3600
-            )
-        )
+#         print(
+#             "Total time: {} hours".format(
+#                 n_frames * self.hop_length / self.sampling_rate / 3600
+#             )
+#         )
 
-        random.shuffle(out)
-        out = [r for r in out if r is not None]
+#         random.shuffle(out)
+#         out = [r for r in out if r is not None]
 
-        # Write metadata
-        with open(os.path.join(self.out_dir, "train.txt"), "w", encoding="utf-8") as f:
-            for m in out[self.val_size :]:
-                f.write(m + "\n")
-        with open(os.path.join(self.out_dir, "val.txt"), "w", encoding="utf-8") as f:
-            for m in out[: self.val_size]:
-                f.write(m + "\n")
+#         # Write metadata
+#         with open(os.path.join(self.out_dir, "train.txt"), "w", encoding="utf-8") as f:
+#             for m in out[self.val_size :]:
+#                 f.write(m + "\n")
+#         with open(os.path.join(self.out_dir, "val.txt"), "w", encoding="utf-8") as f:
+#             for m in out[: self.val_size]:
+#                 f.write(m + "\n")
 
-        return out
+#         return out
 
     def process_utterance(self, speaker, emotion, basename):
-        wav_path = os.path.join(self.in_dir, speaker, emotion, "{}.wav".format(basename))
-        text_path = os.path.join(self.in_dir, speaker, emotion, "{}.lab".format(basename))
-        tg_path = os.path.join(
-            self.out_dir, "TextGrid", speaker, emotion, "{}.TextGrid".format(basename)
-        )
+#         wav_path = os.path.join(self.in_dir, speaker, emotion, "{}.wav".format(basename))
+#         text_path = os.path.join(self.in_dir, speaker, emotion, "{}.lab".format(basename))
+#         tg_path = os.path.join(
+#             self.out_dir, "TextGrid", speaker, emotion, "{}.TextGrid".format(basename)
+#         )
+        modified_wav_filename = "{}-{}-wav-{}.npy".format(speaker, emotion, basename)
+        modified_wav_path = os.path.join(self.out_dir, 'wav_modified', modified_wav_filename)
+        
+        dur_filename = "{}-{}-duration-{}.npy".format(speaker, emotion, basename)
+        duration_path = os.path.join(self.out_dir, 'duration', dur_filename)
+        
+#         pitch_filename = "{}-{}-pitch-{}.npy".format(speaker, emotion, basename)
+#         pitch_path = os.path.join(self.out_dir, 'pitch', pitch_filename)
+        
 
-        # Get alignments
-        textgrid = tgt.io.read_textgrid(tg_path)
-        phone, duration, start, end = self.get_alignment(
-            textgrid.get_tier_by_name("phones")
-        )
-        if not phone:
-            return None
-        text = "{" + " ".join(phone) + "}"
-        if start >= end:
-            return None
+#         # Get alignments
+#         textgrid = tgt.io.read_textgrid(tg_path)
+#         phone, duration, start, end = self.get_alignment(
+#             textgrid.get_tier_by_name("phones")
+#         )
+#         if not phone:
+#             return None
+#         text = "{" + " ".join(phone) + "}"
+#         if start >= end:
+#             return None
 
-        # Read and trim wav files
-        wav, _ = librosa.load(wav_path)
-        wav = wav[
-            int(self.sampling_rate * start) : int(self.sampling_rate * end)
-        ].astype(np.float32)
+#         # Read and trim wav files
+#         wav, _ = librosa.load(wav_path)
+#         wav = wav[
+#             int(self.sampling_rate * start) : int(self.sampling_rate * end)
+#         ].astype(np.float32)
 
-        # Read raw text
-        with open(text_path, "r") as f:
-            raw_text = f.readline().strip("\n")
+#         # Read raw text
+#         with open(text_path, "r") as f:
+#             raw_text = f.readline().strip("\n")
 
         # Compute fundamental frequency
-        pitch, t = pw.dio(
-            wav.astype(np.float64),
-            self.sampling_rate,
-            frame_period=self.hop_length / self.sampling_rate * 1000,
-        )
-        pitch = pw.stonemask(wav.astype(np.float64), pitch, t, self.sampling_rate)
+#         pitch, t = pw.dio(
+#             wav.astype(np.float64),
+#             self.sampling_rate,
+#             frame_period=self.hop_length / self.sampling_rate * 1000,
+#         )
+#         pitch = pw.stonemask(wav.astype(np.float64), pitch, t, self.sampling_rate)
 
-        pitch = pitch[: sum(duration)]
-        if np.sum(pitch != 0) <= 1:
-            return None
+#         pitch = pitch[: sum(duration)]
+#         if np.sum(pitch != 0) <= 1:
+#             return None
 
         # Compute mel-scale spectrogram and energy
+    
+        wav = np.load(modified_wav_path)
+        duration = np.load(duration_path)
+        
         mel_spectrogram, energy = Audio.tools.get_mel_from_wav(wav, self.STFT)
         mel_spectrogram = mel_spectrogram[:, : sum(duration)]
         energy = energy[: sum(duration)]
-
-        if self.pitch_phoneme_averaging:
-            # perform linear interpolation
-            nonzero_ids = np.where(pitch != 0)[0]
-            interp_fn = interp1d(
-                nonzero_ids,
-                pitch[nonzero_ids],
-                fill_value=(pitch[nonzero_ids[0]], pitch[nonzero_ids[-1]]),
-                bounds_error=False,
-            )
-            pitch = interp_fn(np.arange(0, len(pitch)))
-
-            # Phoneme-level average
-            pos = 0
-            for i, d in enumerate(duration):
-                if d > 0:
-                    pitch[i] = np.mean(pitch[pos : pos + d])
-                else:
-                    pitch[i] = 0
-                pos += d
-            pitch = pitch[: len(duration)]
 
         if self.energy_phoneme_averaging:
             # Phoneme-level average
@@ -275,12 +273,12 @@ class Preprocessor:
                 pos += d
             energy = energy[: len(duration)]
 
-        # Save files
-        dur_filename = "{}-{}-duration-{}.npy".format(speaker, emotion, basename)
-        np.save(os.path.join(self.out_dir, "duration", dur_filename), duration)
+#         # Save files
+#         dur_filename = "{}-{}-duration-{}.npy".format(speaker, emotion, basename)
+#         np.save(os.path.join(self.out_dir, "duration", dur_filename), duration)
 
-        pitch_filename = "{}-{}-pitch-{}.npy".format(speaker, emotion, basename)
-        np.save(os.path.join(self.out_dir, "pitch", pitch_filename), pitch)
+#         pitch_filename = "{}-{}-pitch-{}.npy".format(speaker, emotion, basename)
+#         np.save(os.path.join(self.out_dir, "pitch", pitch_filename), pitch)
 
         energy_filename = "{}-{}-energy-{}.npy".format(speaker, emotion, basename)
         np.save(os.path.join(self.out_dir, "energy", energy_filename), energy)
@@ -291,12 +289,12 @@ class Preprocessor:
             mel_spectrogram.T,
         )
 
-        return (
-            "|".join([basename, speaker, emotion, text, raw_text]),
-            self.remove_outlier(pitch),
-            self.remove_outlier(energy),
-            mel_spectrogram.shape[1],
-        )
+#         return (
+#             "|".join([basename, speaker, emotion, text, raw_text]),
+#             self.remove_outlier(pitch),
+#             self.remove_outlier(energy),
+#             mel_spectrogram.shape[1],
+#         )
 
     def get_alignment(self, tier):
         sil_phones = ["sil", "sp", "spn"]

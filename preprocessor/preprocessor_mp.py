@@ -25,6 +25,13 @@ class Preprocessor:
         self.sampling_rate = config["preprocessing"]["audio"]["sampling_rate"]
         self.hop_length = config["preprocessing"]["stft"]["hop_length"]
         
+#         self.pbar_1 = tqdm(total=1420214, desc="Collect Path")
+#         self.pbar_2 = tqdm(total=1420214, desc="Pitch Duration")
+#         self.pbar_3 = tqdm(total=1420214, desc="Mel Energy")
+#         self.pbar_4 = tqdm(total=1420214, desc="Stat")
+        
+        
+        
         if not os.path.exists(self.out_dir):
             os.makedirs(self.out_dir)
 
@@ -56,6 +63,7 @@ class Preprocessor:
             config["preprocessing"]["mel"]["mel_fmax"],
         )
         
+    
     @staticmethod
     def check_folder_or_file(name):
         if os.path.exists(name):
@@ -74,14 +82,14 @@ class Preprocessor:
         emotions = set()
         
         tg_paths, wav_paths, text_paths = [], [], []
-        for i, speaker in enumerate(tqdm(os.listdir(self.in_dir))):
+        for i, speaker in enumerate(os.listdir(self.in_dir)):
             speakers[speaker] = i
             
             speaker_path = os.path.join(self.in_dir, speaker)
             if not Preprocessor.check_folder_or_file(speaker_path) == "folder":
                 continue
             
-            for j, emotion in enumerate(tqdm(os.listdir(os.path.join(self.in_dir, speaker)))):
+            for j, emotion in enumerate(os.listdir(os.path.join(self.in_dir, speaker))):
                 emotions.add(emotion)
                 
                 emotion_path = os.path.join(self.in_dir, speaker, emotion)
@@ -91,6 +99,8 @@ class Preprocessor:
                 for wav_name in os.listdir(os.path.join(self.in_dir, speaker, emotion)):
                     if ".wav" not in wav_name:
                         continue
+                        
+#                     self.pbar_1.update(1)
 
                     basename = wav_name.split(".")[0]
                     wav_path = os.path.join(self.in_dir, speaker, emotion, "{}.wav".format(basename))
@@ -118,7 +128,7 @@ class Preprocessor:
     def calculate_stats(pitches, energies, mels):
         n_frames = 0
         
-        for pitch, energy, mel in zip(pitches, energies, mels):
+        for pitch, energy, mel in tqdm(zip(pitches, energies, mels)):
             if len(pitch) > 0:
                 pitch_scaler.partial_fit(pitch.reshape((-1, 1)))
             if len(energy) > 0:
@@ -176,7 +186,8 @@ class Preprocessor:
         
     def process_duration_and_pitch_mp(self, basenames, speakers, emotions):
         out = []
-        num_processes = multiprocessing.cpu_count()  # You can adjust this as needed
+        num_processes = multiprocessing.cpu_count()
+        print(num_processes)# You can adjust this as needed
         pool = multiprocessing.Pool(processes=num_processes)
 
         # Use the pool to apply the function to each pair of tg and wav paths
@@ -207,6 +218,7 @@ class Preprocessor:
         tg_path = os.path.join(
             self.out_dir, "TextGrid", speaker, emotion, "{}.TextGrid".format(basename)
         )
+        #self.pbar_2.update(1)
         
         if os.path.exists(tg_path) and os.path.exists(wav_path) and os.path.exists(text_path):
             
@@ -353,6 +365,8 @@ class Preprocessor:
             mel_spectrogram.T,
         ) 
         
+    #def process_mel_and_energy(self, basenames, speakers, emotions):
+        
         
         
     def process_mels_and_energies(self, basenames, speakers, emotions, batch_size):
@@ -368,9 +382,6 @@ class Preprocessor:
             durations = [item[0] for item in res if isinstance(item[0], np.ndarray)]
             
             wavs = Preprocessor.pad_batch_wavs(wavs)
-    
-            #print(wavs)
-            print(i)
             
             mel_spectrograms, energies = Audio.tools.get_mel_from_wav(wavs, self.STFT)
             
@@ -393,6 +404,8 @@ class Preprocessor:
         energy_path = os.path.join(self.out_dir, "energy", energy_filename)
         mel_path = os.path.join(self.out_dir, "mel", mel_filename)
         
+        
+        
         #print(pitch_path, energy_path, mel_path)
         
         if os.path.exists(pitch_path) and os.path.exists(energy_path) and os.path.exists(mel_path):
@@ -409,15 +422,17 @@ class Preprocessor:
         pitch_scaler = StandardScaler()
         energy_scaler = StandardScaler()
         
-        num_processes = multiprocessing.cpu_count()  # You can adjust this as needed
-        pool = multiprocessing.Pool(processes=num_processes)
+#         num_processes = multiprocessing.cpu_count()  # You can adjust this as needed
+#         pool = multiprocessing.Pool(processes=num_processes)
         
-        res = pool.starmap(self.read_pitch_energy_mel, zip(speakers, emotions, basenames))
+#         res = pool.starmap(self.read_pitch_energy_mel, zip(speakers, emotions, basenames))
         
-        pool.close()
-        pool.join()
+#         pool.close()
+#         pool.join()
+        for speaker, emotion, basename in tqdm(zip(speakers, emotions, basenames)):
+            item = self.read_pitch_energy_mel(speaker, emotion, basename)
         
-        for item in res:
+        #for item in res:
             #print(item)
             pitch = item[0]
             energy = item[1]
@@ -428,13 +443,13 @@ class Preprocessor:
             mel = item[2]
             n = mel.shape[1]
             n_frames += n
-            
+
             if len(pitch) > 0:
                 pitch_scaler.partial_fit(pitch.reshape((-1, 1)))
-                
+
             if len(energy) > 0:
                 energy_scaler.partial_fit(energy.reshape((-1, 1)))
-                
+
         print("Computing statistic quantities ...")
         # Perform normalization if necessary
         if self.pitch_normalization:
@@ -497,11 +512,10 @@ class Preprocessor:
                 new_tier.append(t1)
                 if (t2.start_time - t1.end_time) != 0:
 
-                    warnings.warn('Find a slice with empty text.')
+                    #warnings.warn('Find a slice with empty text.')
                     new_tier.append(tgt.Interval(start_time=t1.end_time, end_time=t2.start_time, text='spn'))
             new_tier.append(t2)
         except:
-            print()
             return None, None, None, None
         
         for t in new_tier:
