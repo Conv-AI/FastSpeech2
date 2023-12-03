@@ -49,14 +49,14 @@ def main(args, configs):
     
     
     #load checkpoint
-#     ckpt_file_path = './output/ckpt/EMOVDB_frozen/48000.pth.tar'
-#     checkpoint = torch.load(ckpt_file_path, map_location=torch.device('cpu'))
-#     model.load_state_dict(checkpoint['model'])
+    ckpt_file_path = './NovaEmo.pth'
+    checkpoint = torch.load(ckpt_file_path, map_location=torch.device('cpu'))
+    model.load_state_dict(checkpoint['model'])
     
-    for name, param in model.named_parameters():
-        if 'speaker' in name or 'emotion' in name:
-            continue
-        param.requires_grad = False
+#     for name, param in model.named_parameters():
+#         if 'speaker' in name:
+#             continue
+#         param.requires_grad = False
     
     model = nn.DataParallel(model)
     num_param = get_param_num(model)

@@ -4,7 +4,7 @@ path:
   corpus_path: "../../EMOVDB/raw_data"
   lexicon_path: "lexicon/ravdess-lexicon.txt"
   raw_path: "../../EMOVDB/raw_data"
-  preprocessed_path: "../../EMOVDB/processed_data"
+  preprocessed_path: "/workspace/nemo/vol/extvol1"
 
 preprocessing:
   val_size: 

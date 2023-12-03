@@ -2,7 +2,7 @@ import argparse
 
 import yaml
 
-from preprocessor import ljspeech, aishell3, libritts, ravdess, eb_small, lbm_eb
+from preprocessor import ljspeech, aishell3, libritts, ravdess, eb_small, lbm_eb, nova
 
 
 def main(config):
@@ -20,6 +20,8 @@ def main(config):
         anime.prepare_align(config)
     if "LBM_EB" in config["dataset"]:
         lbm_eb.prepare_align(config)
+    if "Nova" in config["dataset"]:
+        nova.prepare_align(config)
 
 
 if __name__ == "__main__":

@@ -113,7 +113,7 @@ class Preprocessor:
                     tg_path = os.path.join(
                         self.out_dir, "TextGrid", speaker, emotion, "{}.TextGrid".format(basename)
                     )
-#                     print("tg_path:", tg_path)
+                    #print("tg_path:", tg_path)
                     if os.path.exists(tg_path):
                         ret = self.process_utterance(speaker, emotion, basename)
                         if ret is None:
@@ -121,6 +121,10 @@ class Preprocessor:
                         else:
                             info, pitch, energy, n = ret
                         out.append(info)
+                        
+                    else:
+                        print(tg_path)
+                        continue
 
                     if len(pitch) > 0:
                         pitch_scaler.partial_fit(pitch.reshape((-1, 1)))

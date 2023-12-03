@@ -28,8 +28,10 @@ def read_lexicon(lex_path):
                 lexicon[word.lower()] = phones
     return lexicon
 
+import pdb
 
 def preprocess_english(text, preprocess_config):
+#     pdb.set_trace()
     text = text.rstrip(punctuation)
     lexicon = read_lexicon(preprocess_config["path"]["lexicon_path"])
 
@@ -42,7 +44,7 @@ def preprocess_english(text, preprocess_config):
         else:
             phones += list(filter(lambda p: p != " ", g2p(w)))
     phones = "{" + "}{".join(phones) + "}"
-    phones = re.sub(r"\{[^\w\s]?\}", "{sp}", phones)
+    phones = re.sub(r"\{[^\w\s]?\}", "{spn}", phones)
     phones = phones.replace("}{", " ")
 
 #     print("Raw Text Sequence: {}".format(text))
