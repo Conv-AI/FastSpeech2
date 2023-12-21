@@ -1,9 +1,9 @@
 path:
-  ckpt_path: "./output/ckpt/Nova_from_scratch"
-  log_path: "./output/log/Nova_from_scratch"
-  result_path: "./output/result/Nova_from_scratch"
+  ckpt_path: "./output/ckpt/Nova_mod_audio"
+  log_path: "./output/log/Nova_mod_audio"
+  result_path: "./output/result/Nova_mod_audio"
 optimizer:
-  batch_size: 32
+  batch_size: 64
   betas: [0.9, 0.98]
   eps: 0.000000001
   weight_decay: 0.0
@@ -17,7 +17,7 @@ step:
   log_step: 50
   synth_step: 1000
   val_step: 200
-  save_step: 1000
+  save_step: 2000
 logging:
   project: "ConvaiNova"
-  run: "BS_32"
+  run: "BS_64_mod_audio"

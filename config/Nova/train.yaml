@@ -1,7 +1,7 @@
 path:
-  ckpt_path: "./output/ckpt/Nova"
-  log_path: "./output/log/Nova"
-  result_path: "./output/result/Nova"
+  ckpt_path: "./output/ckpt/Nova_wo_LJ"
+  log_path: "./output/log/Nova_wo_LJ"
+  result_path: "./output/result/Nova_wo_LJ"
 optimizer:
   batch_size: 64
   betas: [0.9, 0.98]

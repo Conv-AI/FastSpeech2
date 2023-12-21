@@ -61,6 +61,9 @@ class FastSpeech2Loss(nn.Module):
         if self.energy_feature_level == "frame_level":
             energy_predictions = energy_predictions.masked_select(mel_masks)
             energy_targets = energy_targets.masked_select(mel_masks)
+            
+#         import pdb
+#         pdb.set_trace()
 
         log_duration_predictions = log_duration_predictions.masked_select(src_masks)
         log_duration_targets = log_duration_targets.masked_select(src_masks)
